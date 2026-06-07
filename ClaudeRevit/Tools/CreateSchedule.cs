@@ -1,0 +1,130 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using Anthropic.Models.Beta.Messages;
+using Autodesk.Revit.DB;
+using Autodesk.Revit.UI;
+
+namespace ClaudeRevit.Tools;
+
+public class CreateSchedule : IRevitTool
+{
+    public string Name => "create_schedule";
+
+    public string Description =>
+        "Creates a real Revit ViewSchedule (an auto-updating quantities table) for a given category, " +
+        "with the columns the user wants. Field names are matched case-insensitively against Revit's " +
+        "schedulable fields for that category.\n\n" +
+        "Common field names by category:\n" +
+        "  - Walls: 'Type', 'Family and Type', 'Length', 'Area', 'Volume', 'Base Constraint', 'Unconnected Height', 'Comments'\n" +
+        "  - Floors: 'Type', 'Area', 'Volume', 'Level', 'Comments'\n" +
+        "  - Roofs: 'Type', 'Area', 'Volume', 'Comments'\n" +
+        "  - Rooms: 'Number', 'Name', 'Area', 'Volume', 'Level', 'Department'\n" +
+        "  - Doors / Windows: 'Type', 'Family and Type', 'Mark', 'Level', 'Comments'\n\n" +
+        "After creating, place the schedule on a sheet with place_view_on_sheet (auto-detects schedules). " +
+        "The returned id is the schedule's view id. 'fields_not_found' lists any field names that didn't match — " +
+        "call create_schedule again with corrected names if needed. To get an exhaustive list of valid fields for a " +
+        "category, create a tiny schedule with one common field and read 'available_fields_count' / inspect via Revit.";
+
+    public InputSchema InputSchema => new()
+    {
+        Properties = new Dictionary<string, JsonElement>
+        {
+            ["category"] = JsonSerializer.SerializeToElement(new
+            {
+                type = "string",
+                description = "Element category, e.g. 'Walls', 'Floors', 'Rooms', 'Doors', 'Windows', 'Roofs', 'Stairs', 'Furniture'."
+            }),
+            ["fields"] = JsonSerializer.SerializeToElement(new
+            {
+                type = "array", minItems = 1,
+                description = "Field names to include as columns, in order.",
+                items = new { type = "string" }
+            }),
+            ["name"] = JsonSerializer.SerializeToElement(new
+            {
+                type = "string",
+                description = "Optional schedule name (must be unique in the document)."
+            }),
+            ["sort_by"] = JsonSerializer.SerializeToElement(new
+            {
+                type = "string",
+                description = "Optional: field name to sort rows by (ascending). Must be one of the added fields."
+            })
+        },
+        Required = ["category", "fields"]
+    };
+
+    public bool RequiresTransaction => true;
+
+    public string Execute(IReadOnlyDictionary<string, JsonElement> input, UIApplication app)
+    {
+        var doc = app.ActiveUIDocument?.Document
+            ?? throw new InvalidOperationException("No document is open.");
+
+        var category = input["category"].GetString()!;
+        if (!Enum.TryParse<BuiltInCategory>($"OST_{category}", ignoreCase: true, out var bic))
+            throw new InvalidOperationException(
+                $"Unknown category '{category}'. Try 'Walls', 'Floors', 'Rooms', 'Doors', etc.");
+
+        var schedule = ViewSchedule.CreateSchedule(doc, new ElementId(bic));
+
+        var schedulable = schedule.Definition.GetSchedulableFields();
+        var fieldMap = new Dictionary<string, SchedulableField>(StringComparer.OrdinalIgnoreCase);
+        foreach (var sf in schedulable)
+        {
+            var name = sf.GetName(doc);
+            if (!fieldMap.ContainsKey(name)) fieldMap[name] = sf;
+        }
+
+        var requested = input["fields"].EnumerateArray()
+            .Select(e => e.GetString()!)
+            .Where(s => !string.IsNullOrWhiteSpace(s))
+            .ToList();
+
+        var added = new List<ScheduleField>();
+        var notFound = new List<string>();
+
+        foreach (var name in requested)
+        {
+            if (fieldMap.TryGetValue(name, out var sf))
+                added.Add(schedule.Definition.AddField(sf));
+            else
+                notFound.Add(name);
+        }
+
+        if (input.TryGetValue("sort_by", out var sb) && sb.ValueKind == JsonValueKind.String)
+        {
+            var sortName = sb.GetString();
+            var sortField = added.FirstOrDefault(f =>
+                string.Equals(f.GetName(), sortName, StringComparison.OrdinalIgnoreCase));
+            if (sortField != null)
+            {
+                schedule.Definition.AddSortGroupField(
+                    new ScheduleSortGroupField(sortField.FieldId, ScheduleSortOrder.Ascending));
+            }
+        }
+
+        if (input.TryGetValue("name", out var n) && n.ValueKind == JsonValueKind.String)
+        {
+            try { schedule.Name = n.GetString(); }
+            catch { /* name conflict — keep autogenerated */ }
+        }
+
+        return JsonSerializer.Serialize(new
+        {
+            id = schedule.Id.Value,
+            type = "Schedule",
+            name = schedule.Name,
+            category,
+            fields_added = added.Select(f => f.GetName()).ToList(),
+            fields_not_found = notFound,
+            available_fields_count = fieldMap.Count,
+            hint = notFound.Count > 0
+                ? $"{notFound.Count} field(s) didn't match. Available examples: " +
+                  string.Join(", ", fieldMap.Keys.Take(10))
+                : null
+        });
+    }
+}

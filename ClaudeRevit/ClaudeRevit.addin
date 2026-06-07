@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RevitAddIns>
+  <AddIn Type="Application">
+    <Name>Claude Revit</Name>
+    <Assembly>ClaudeRevit.dll</Assembly>
+    <FullClassName>ClaudeRevit.App</FullClassName>
+    <ClientId>c8a3e9f4-7d2b-4e16-9a5c-3f8b6d4e2a1c</ClientId>
+    <VendorId>CLAUDE</VendorId>
+    <VendorDescription>Claude AI integration for Autodesk Revit</VendorDescription>
+  </AddIn>
+</RevitAddIns>
