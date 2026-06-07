@@ -1,13 +1,13 @@
 # Claude Revit
 
-Claude AI in Autodesk Revit 2027 — a dockable chat pane with **64 tools** that let Claude inspect and modify your model directly. Ask it to create walls, generate schedules, place families, dimension grids, draft sketches, and more.
+Claude AI in Autodesk Revit 2027 — a dockable chat pane with **80 tools** that let Claude inspect and modify your model directly. Ask it to create walls, generate schedules, place families, dimension grids, draft sketches, and more.
 
 ---
 
 ## Features
 
 - **Dockable chat pane** in Revit, with streaming responses
-- **64 tools** spanning modeling, views, sheets, annotation, schedules, filters, families
+- **80 tools** spanning modeling, views, sheets, annotation, schedules, filters, families
 - **Single-undo per prompt** — Ctrl+Z reverts everything Claude did in one turn
 - **Selection awareness** — green pill shows what's selected; Claude knows what "this" means
 - **Markdown rendering** + **selectable text** in messages
@@ -107,7 +107,7 @@ The deploy target also follows the version, copying to `%AppData%\Autodesk\Revit
 
 ## Tools
 
-The plugin exposes **64 tools** to Claude across these categories:
+The plugin exposes **80 tools** to Claude across these categories:
 
 - **Inspection** — get/list elements, parameters, levels, materials, phases, families, project info, warnings
 - **Geometry creation** — walls, floors, roofs, rooms, levels, grids, doors, windows, columns, beams
