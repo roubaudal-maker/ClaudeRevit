@@ -27,16 +27,25 @@ You need:
 - **Windows** (Revit is Windows-only)
 - **Anthropic API key** — get one at [console.anthropic.com](https://console.anthropic.com/settings/keys) and add credits in **Billing**
 
-Then open PowerShell and run this one-liner. It downloads the latest release and copies the add-in into your Revit Addins folder:
+Pick whichever install path you prefer:
+
+### Option A — Installer .exe (easiest)
+
+Download **`ClaudeRevit-Setup-vX.Y.exe`** from the [latest release](https://github.com/roubaudal-maker/ClaudeRevit/releases/latest), double-click, click Next → Install. Done.
+
+> Windows SmartScreen may say "Windows protected your PC" the first time (the installer isn't code-signed yet). Click **More info → Run anyway**.
+
+### Option B — PowerShell one-liner
+
+Open PowerShell and run:
 
 ```powershell
 iwr https://raw.githubusercontent.com/roubaudal-maker/ClaudeRevit/main/install.ps1 | iex
 ```
 
+Either way: launch Revit, open any project, look for the **Claude** tab in the ribbon. Click **Chat** → the pane opens on the right. First time? Click the **⚙** icon in the pane and paste your API key.
 
-Launch Revit, open any project, and look for the **Claude** tab in the ribbon. Click **Chat** → the pane opens on the right. First time? Click the **⚙** icon and paste your API key.
-
-To update later, re-run the same one-liner.
+To update later, re-run the installer or the one-liner — both pick up the latest release.
 
 ---
 

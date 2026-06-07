@@ -24,7 +24,7 @@ jobs:
       - name: Restore
         run: dotnet restore ClaudeRevit\ClaudeRevit.csproj
 
-      - name: Build Release (CI flag skips local Revit deploy)
+      - name: Build Release
         run: dotnet build ClaudeRevit\ClaudeRevit.csproj -c Release -p:SkipDeploy=true --no-restore
 
       - name: Determine version
@@ -39,12 +39,25 @@ jobs:
         shell: pwsh
         run: |
           $src = "ClaudeRevit\bin\Release\release"
-          if (-not (Test-Path $src)) {
-            throw "Expected release staging folder not found at $src"
-          }
+          if (-not (Test-Path $src)) { throw "Staging folder not found at $src" }
           $zipPath = "ClaudeRevit-${{ steps.vars.outputs.version }}.zip"
           Compress-Archive -Path "$src\*" -DestinationPath $zipPath -Force
           Get-Item $zipPath | Format-List Name, Length
+
+      - name: Compile installer with Inno Setup
+        uses: Minionguyjpro/Inno-Setup-Action@v1.2.2
+        with:
+          path: installer\ClaudeRevit.iss
+          options: /DAppVersion=${{ steps.vars.outputs.version }} /Qp
+
+      - name: Locate built installer
+        id: installer
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem "installer\output\*.exe" | Select-Object -First 1
+          if (-not $exe) { throw "Installer .exe not found" }
+          "path=$($exe.FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          Write-Host "Installer: $($exe.FullName) ($([math]::Round($exe.Length / 1KB, 1)) KB)"
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -52,6 +65,8 @@ jobs:
           tag_name: ${{ steps.vars.outputs.version }}
           name: ${{ steps.vars.outputs.version }}
           generate_release_notes: true
-          files: ClaudeRevit-${{ steps.vars.outputs.version }}.zip
+          files: |
+            ClaudeRevit-${{ steps.vars.outputs.version }}.zip
+            ${{ steps.installer.outputs.path }}
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
